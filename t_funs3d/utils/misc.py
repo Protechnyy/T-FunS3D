@@ -14,6 +14,8 @@ from datetime import date
 
 def get_free_gpu(min_mem=20000):
     torch.cuda.empty_cache()
+    if torch.cuda.device_count() == 1:
+        return torch.device("cuda", 0)
     try:
         with NamedTemporaryFile() as f:
             os.system(f"nvidia-smi -q -d Memory | grep -A5 GPU | grep Free > {f.name}")
@@ -41,6 +43,9 @@ def np_normalize(array: np.ndarray) -> np.ndarray:
 
     amin, amax = array.min(), array.max()
     m_array = array.copy()
+
+    if amax == amin:
+        return np.zeros_like(m_array, dtype=np.float32)
 
     return (m_array - amin) / (amax - amin)
 

@@ -106,7 +106,7 @@ def get_class_agnostic_masks(cfg: DictConfig):
     print(f"[INFO] Results saved to {results_path}")
         
 
-@hydra.main(config_path="conf", config_name="config_base_class_agn_masks_single_scene.yaml")
+@hydra.main(config_path="../third-party/openmask3d/openmask3d/class_agnostic_mask_computation/conf", config_name="config_base_class_agn_masks_single_scene.yaml")
 def main(cfg: DictConfig):
     get_class_agnostic_masks(cfg)
     

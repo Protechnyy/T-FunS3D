@@ -1,11 +1,13 @@
 import math
 import re
 from typing import List, Optional, Tuple
+from unittest import mock
 
 import numpy as np
 import torch
 from numpy import array
 import clip
+from transformers import dynamic_module_utils
 from transformers import (
     AutoModel,
     AutoModelForCausalLM,
@@ -26,13 +28,18 @@ from t_funs3d.utils.misc import mask_to_box
 
 
 def init_molmo():
-
-    processor = AutoProcessor.from_pretrained(
-        "allenai/Molmo-7B-D-0924",
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
+    get_imports = dynamic_module_utils.get_imports
+    with mock.patch.object(
+        dynamic_module_utils,
+        "get_imports",
+        lambda path: [name for name in get_imports(path) if name != "tensorflow"],
+    ):
+        processor = AutoProcessor.from_pretrained(
+            "allenai/Molmo-7B-D-0924",
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
 
     # load the model
     model = AutoModelForCausalLM.from_pretrained(
@@ -42,6 +49,27 @@ def init_molmo():
         device_map="auto",
     )
     return model, processor
+
+
+def _torch_all_compat(input, dim=None, keepdim=False, *, out=None):
+    """Support tuple dimensions for Molmo when running on PyTorch 2.1."""
+    if isinstance(dim, tuple):
+        result = input
+        for axis in sorted(dim, reverse=True):
+            result = _torch_all(result, dim=axis, keepdim=keepdim)
+        if out is not None:
+            out.copy_(result)
+            return out
+        return result
+
+    if dim is None:
+        return _torch_all(input, out=out) if out is not None else _torch_all(input)
+    if out is not None:
+        return _torch_all(input, dim=dim, keepdim=keepdim, out=out)
+    return _torch_all(input, dim=dim, keepdim=keepdim)
+
+
+_torch_all = torch.all
 
 
 def inference_molmo(molmo_model, molmo_processor, img, prompt) -> str:
@@ -55,16 +83,17 @@ def inference_molmo(molmo_model, molmo_processor, img, prompt) -> str:
     inputs = {k: v.to(molmo_model.device).unsqueeze(0) for k, v in inputs.items()}
     # generate output; maximum 200 new tokens; stop generation when <|endoftext|> is generated
     inputs["images"] = inputs["images"].to(torch.bfloat16)
-    output = molmo_model.generate_from_batch(
-        inputs,
-        GenerationConfig(
-            max_new_tokens=200,
-            stop_strings="<|endoftext|>",
-            temperature=1.0,
-            do_sample=True,
-        ),
-        tokenizer=molmo_processor.tokenizer,
-    )
+    with mock.patch.object(torch, "all", _torch_all_compat):
+        output = molmo_model.generate_from_batch(
+            inputs,
+            GenerationConfig(
+                max_new_tokens=200,
+                stop_strings="<|endoftext|>",
+                temperature=1.0,
+                do_sample=True,
+            ),
+            tokenizer=molmo_processor.tokenizer,
+        )
 
     generated_tokens = output[0, inputs["input_ids"].size(1) :]
     generated_text = molmo_processor.tokenizer.decode(
@@ -106,11 +135,12 @@ def _inference_molmo_batched(
             all_inputs[k] = torch.stack(all_inputs[k], dim=0).to(molmo_model.device)
 
     # generate output; maximum 200 new tokens; stop generation when <|endoftext|> is generated
-    output = molmo_model.generate_from_batch(
-        all_inputs,
-        GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
-        tokenizer=molmo_processor.tokenizer,
-    )
+    with mock.patch.object(torch, "all", _torch_all_compat):
+        output = molmo_model.generate_from_batch(
+            all_inputs,
+            GenerationConfig(max_new_tokens=200, stop_strings="<|endoftext|>"),
+            tokenizer=molmo_processor.tokenizer,
+        )
 
     for i in range(len(imgs)):
         generated_tokens = output[i, all_inputs["input_ids"].size(1) :]
@@ -582,7 +612,7 @@ def process_detection(owl_m, owl_p, sam_m, sam_p, images, prompts) -> dict:
 
     return mask_data
 
-def init_clip_visual(clip_model=None, download_root=None):
+def init_clip_visual(clip_model=None, download_root=None, device=None):
     '''Initialize CLIP models'''
     if clip_model is None:
         model, processor = clip.load('ViT-L/14@336px', download_root=download_root) #TODO down models into /tmp/jfeng/cache/clip
@@ -600,7 +630,7 @@ def init_clip_visual(clip_model=None, download_root=None):
             clip_model,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
-            device_map="auto",
+            device_map={"": device} if device is not None else "auto",
         )
         # Get the output dimension of the model
         output_dim = model.config.text_config.hidden_size

@@ -7,7 +7,7 @@ import time
 
 class LLMParser:
     def __init__(self, 
-                 model_name: str = "Qwen/Qwen3-4B",
+                 model_name: str = "Qwen/Qwen3-14B",
                  torch_dtype: str = "auto",
                  device_map: str = "auto",
                  ):
@@ -91,7 +91,7 @@ class LLMParser:
             messages,
             tokenize=False,
             add_generation_prompt=True,
-            enable_thinking=True, # Enable thinking for extracting relations
+            enable_thinking=False,
         )
         model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
         

@@ -12,10 +12,10 @@ import open3d as o3d
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from openmask3d.utils import io
-from openmask3d.utils.evaluator import Segment3DEvaluator
-from openmask3d.utils.misc import np_normalize, sort_alphanumeric
-from openmask3d.utils.sun3d.data_parser import DataParser
+from t_funs3d.utils import io
+from t_funs3d.utils.evaluator import Segment3DEvaluator
+from t_funs3d.utils.misc import np_normalize, sort_alphanumeric
+from t_funs3d.utils.sun3d.data_parser import DataParser
 
 
 def viz_3d_masks(pcd: np.array, gt_mask: np.array, pred_mask: np.array, outfile: str) -> None:
@@ -91,7 +91,7 @@ def post_process_pcd(
     """
     n_views = masks["n_views"]
     acc_f = masks["acc_f"]
-    if acc_f.sum() == 0:
+    if not np.any(acc_f):
     #     return torch.zeros(acc_f.shape[0])
         print("[Warning] acc_f = 0")
     p_f = np_normalize(acc_f / n_views)
@@ -101,7 +101,7 @@ def post_process_pcd(
     return torch.tensor(pred_mask)
 
 
-@hydra.main(config_path="../configs", config_name="func_segm")
+@hydra.main(config_path="../config", config_name="functionality_segm")
 def main(args: DictConfig):
 
     evaluate_molmo(args)

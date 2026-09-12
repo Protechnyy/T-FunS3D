@@ -2,6 +2,7 @@
 export OMP_NUM_THREADS=3  # speeds up MinkowskiEngine
 export HF_HOME="/tmp/t-funs3d/cache/" # Specify cache dir for daic compute nodes
 set -e
+export PYTHONPATH="$(pwd)/third-party/openmask3d/openmask3d/class_agnostic_mask_computation:$(pwd)${PYTHONPATH:+:$PYTHONPATH}"
 
 # RUN OPENMASK3D FOR A BATCH OF SCENES of the SceneFun3D dataset
 # This script performs the following:
@@ -12,9 +13,9 @@ set -e
 # NOTE: SET THESE PARAMETERS BASED ON YOUR SCENE!
 # data paths
 ROOT="$(pwd)/datasets/scenefun3d"
-SPLIT="train"
-START=1
-END=2
+SPLIT="val"
+START="${START:-0}"
+END="${END:-1}"
 
 SCENE_POSE_DIR="processed/pose"
 SCENE_INTRINSIC_PATH="hires_wide_intrinsics"
@@ -44,16 +45,16 @@ SAVE_CROPS=true
 # gpu optimization
 OPTIMIZE_GPU_USAGE=false
 
-cd t_funs3d
 
 # 1. Compute class agnostic masks and save them
 echo "[INFO] Extracting class agnostic masks..."
-python class_agnostic_mask_computation/get_masks_scenefun3d.py \
+python -m t_funs3d.get_masks_scenefun3d \
 general.experiment_name=${EXPERIMENT_NAME} \
 general.checkpoint=${MASK_MODULE_CKPT_PATH} \
 general.train_mode=false \
 data.test_mode=test \
 model.num_queries=120 \
++model._recursive_=false \
 general.use_dbscan=true \
 general.dbscan_eps=0.95 \
 general.dbscan_min_points=50 \
@@ -69,16 +70,14 @@ general.iou_threshold=0.2 \
 hydra.run.dir="${OUTPUT_FOLDER_DIRECTORY}" 
 echo "[INFO] Mask computation done!"
 
-# get the path of the saved masks
-MASK_FILE_BASE=$(echo $SCENE_PLY_PATH | sed 's:.*/::')
-MASK_FILE_NAME=${MASK_FILE_BASE/.ply/_masks.pt}
-SCENE_MASK_PATH="${OUTPUT_FOLDER_DIRECTORY}/${MASK_FILE_NAME}/masks"
+SCENE_MASK_PATH="$MASK_SAVE_DIR"
 echo "[INFO] Masks saved to ${SCENE_MASK_PATH}."
 
 # 2. Compute mask features for each mask and save them
 echo "[INFO] Computing mask features..."
 
-python compute_features_scenefun3d.py \
+# The mask directory already contains the scenes selected in stage 1.
+python -m t_funs3d.compute_features_scenefun3d \
 data.masks.masks_path=${SCENE_MASK_PATH} \
 data.camera.poses_path=${SCENE_POSE_DIR} \
 data.camera.intrinsic_path=${SCENE_INTRINSIC_PATH} \
@@ -93,8 +92,8 @@ output.save_crops=${SAVE_CROPS} \
 openmask3d.vis_threshold=0.1 \
 +dataset.root=${ROOT} \
 +dataset.split=${SPLIT} \
-+dataset.start=${START} \
-+dataset.end=${END} \
++dataset.start=0 \
++dataset.end=null \
 +data.dataset="scenefun3d" \
 hydra.run.dir="${OUTPUT_FOLDER_DIRECTORY}" \
 external.sam_checkpoint=${SAM_CKPT_PATH} \
@@ -103,40 +102,41 @@ echo "[INFO] Feature computation done!"
 
 
 MASK_TYPE="standard"
-LLM_TYPE="qwen3"
+LLM_TYPE="qwen3_14b"
+QWEN_MODEL_PATH="$(pwd)/models/Qwen3-14B"
 
 
 # Stage II: Task-driven 3d functionality segmentation
 # 3. Parse task descriptions and decompose them into ontology and functionality.
 echo "[INFO] Parsing task descriptions and decomposing them into ontology and functionality..."
 
-python parse_task_description.py dataset.root=$ROOT dataset.split=$SPLIT llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.parse_task_descriptions dataset.root=$ROOT dataset.split=$SPLIT llm_type=$LLM_TYPE llm.model=$QWEN_MODEL_PATH hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Task description parsing and decomposition for ${START} - ${END} done!"
 
 
 # 4. Query open vocabulary scene graph for each scene and save the results
 echo "[INFO] Querying open vocabulary scene graph for candidate nodes..."
 
-python make_masks_index.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.make_masks_index dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Scene graph querying for ${START} - ${END} done!"
 
 
 # 5. Run MolMO to generate functionality masks for each task and save them
 echo "[INFO] Running MolMO to generate functionality masks for each task..."
 
-python functionality_segmentation/run_molmo_sam.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.functionality_segmentation.run_molmo_sam dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] MolMO for ${START} - ${END} done!"
 
 
 # 6. Lift the functionality masks to 3D and save them
 echo "[INFO] Lifting the functionality masks to 3D..."
 
-python functionality_segmentation/run_lifting.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.functionality_segmentation.run_lifting dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Lifting for ${START} - ${END} done!"
 
 
 # Evaluation
 echo "[INFO] Evaluating for ${START} - ${END}..."
 
-python evaluation/evaluate.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.evaluation.evaluate dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Evaluation for ${START} - ${END} done!"

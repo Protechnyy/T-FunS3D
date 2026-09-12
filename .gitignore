@@ -169,3 +169,14 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Sources fetched and patched by install.sh
+/third-party/GLIP/
+/third-party/segmentator/
+/datasets/
+/checkpoints/
+/scene_example.zip
+/.vscode/
+t-funs3d_outputs/
+saved/
+models/

@@ -13,7 +13,7 @@ import argparse
 
 import pandas as pd
 
-from scripts.sun3d.download_utils.download_data import (
+from download_utils.download_data import (
     default_raw_dataset_assets,
     download_assets_for_video_id,
     download_assets_for_visit_id,

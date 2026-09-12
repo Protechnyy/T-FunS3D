@@ -10,7 +10,6 @@ import os
 import subprocess
 
 import pandas as pd
-from moviepy.editor import *
 
 ARKitScenes_url = (
     "https://docs-assets.developer.apple.com/ml-research/datasets/arkitscenes/v1"
@@ -219,7 +218,7 @@ def unzip_file(file_name, dst, keep_zip=True):
 
 def download_assets_for_visit_id(visit_id, download_dir, split, dataset_assets):
     metadata = pd.read_csv(
-        "data/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv"
+        "datasets/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv"
     )
     url_prefix = ""
     file_names = []
@@ -242,7 +241,7 @@ def download_assets_for_video_id(
     visit_id, video_id, download_dir, split, dataset_assets
 ):
     metadata = pd.read_csv(
-        "data/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv"
+        "datasets/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv"
     )
     url_prefix = ""
     file_names = []
@@ -284,7 +283,7 @@ def download_assets_for_video_id(
 # Function to find the arkitscenes fold value for a given video_id
 def find_arkitscenes_split(video_id):
     video_id = int(video_id)
-    df = pd.read_csv("data/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv")
+    df = pd.read_csv("datasets/scenefun3d/benchmark_file_lists/arkitscenes/metadata.csv")
 
     # Filter the DataFrame by the given video_id
     result = df[df["video_id"] == video_id]
@@ -300,6 +299,8 @@ def find_arkitscenes_split(video_id):
 
 
 def convert_mov_to_mp4(video_id, download_dir):
+    from moviepy.editor import VideoFileClip
+
     video_id = str(video_id)
     video_path = os.path.join(download_dir, video_id)
 

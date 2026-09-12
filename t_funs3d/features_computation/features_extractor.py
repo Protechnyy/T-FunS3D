@@ -9,7 +9,7 @@ from tqdm import tqdm
 from openmask3d.data.load import Camera, InstanceMasks3D, Images, PointCloud, get_number_of_images
 # from openmask3d.mask_features_computation.utils import initialize_sam_model, mask2box_multi_level, run_sam
 from openmask3d.mask_features_computation.utils import *
-from openmask3d.utils.hf_models import init_clip_visual, init_sam_model, process_sam_points
+from t_funs3d.utils.hf_models import init_clip_visual, init_sam_model, process_sam_points
 
 from transformers import AutoImageProcessor, AutoTokenizer, AutoModelForCausalLM
 import time
@@ -292,7 +292,7 @@ class FeaturesExtractor:
 
         print("[INFO] Loading clip model")
         self.clip_type = "FG_CLIP"
-        self.clip_model, self.clip_preprocess = init_clip_visual("qihoo360/fg-clip-large") #clip_model="google/siglip2-large-patch16-512")#"qihoo360/fg-clip-large")
+        self.clip_model, self.clip_preprocess = init_clip_visual("qihoo360/fg-clip-large", device=device) #clip_model="google/siglip2-large-patch16-512")#"qihoo360/fg-clip-large")
 
         # if "fg-clip" in clip_model:
         #     self.clip_model = AutoModelForCausalLM.from_pretrained(clip_model, trust_remote_code=True).to(device)

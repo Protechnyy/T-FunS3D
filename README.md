@@ -68,23 +68,29 @@ Outputs are saved to 'demo/outputs/example_scene/' -->
 ## Data Preparation
 We download the data split of SceneFun3D using the published scripts of Fun3DU.
 1. Create dataset root folder `$ROOT` (`datasets/scenefun3d/` is the default path in the scripts).
-2. Download the file lists folder from the original dataset repo and put it in the `$ROOT`.
+2. Download the file lists from the [official dataset repo](https://github.com/SceneFun3D/scenefun3d/tree/main/benchmark_file_lists). Run all commands below from the repository root:
+```bash
+export ROOT="$PWD/datasets/scenefun3d"
+mkdir -p "$ROOT/benchmark_file_lists/arkitscenes"
+for file in train_val_set.csv train_scenes.txt val_scenes.txt arkitscenes/metadata.csv; do
+    curl -fL "https://raw.githubusercontent.com/SceneFun3D/scenefun3d/main/benchmark_file_lists/$file" -o "$ROOT/benchmark_file_lists/$file"
+done
+```
 3. Create the lists of two splits by running the following scripts:
 ```bash
-cd data_preparation
-python make_video_list.py train
-python make_video_list.py val
+python data_preparation/make_video_list.py train
+python data_preparation/make_video_list.py val
 ```
 4. Download the data splits: 
 ```bash
-python sun3d/data_asset_download.py --split custom --video_id_csv $ROOT/benchmark_file_lists/val_set.csv --download_dir $ROOT/val --dataset_asset laser_scan_5mm crop_mask annotations descriptions hires_wide hires_wide_intrinsics hires_depth hires_poses
+python data_preparation/sun3d/data_asset_download.py --split custom --video_id_csv $ROOT/benchmark_file_lists/val_set.csv --download_dir $ROOT/val --dataset_asset laser_scan_5mm crop_mask annotations descriptions hires_wide hires_wide_intrinsics hires_depth hires_poses
 
-python sun3d/data_asset_download.py --split custom --video_id_csv $ROOT/benchmark_file_lists/train_set.csv --download_dir $ROOT/train --dataset_asset laser_scan_5mm crop_mask annotations descriptions hires_wide hires_wide_intrinsics hires_depth hires_poses
+python data_preparation/sun3d/data_asset_download.py --split custom --video_id_csv $ROOT/benchmark_file_lists/train_set.csv --download_dir $ROOT/train --dataset_asset laser_scan_5mm crop_mask annotations descriptions hires_wide hires_wide_intrinsics hires_depth hires_poses
 ```
 
-Run the following script to prepare the scenefun3d data for the pipeline. The step includes converting data structures and preprocessing the point clouds.
+Set `SPLIT` in `data_preparation/scenefun3d_batch_data_preprocess.sh` (`val` for the downloaded validation set). Batch IDs start at 0. Run the following script to prepare the scenefun3d data for the pipeline. The step includes converting data structures and preprocessing the point clouds.
 ```bash
-bash scenefun3d_batch_data_preprocess.sh <batch_id> # The script prepares the data batch-wise. One batch contains 10 scenes by default.
+bash data_preparation/scenefun3d_batch_data_preprocess.sh <batch_id> # The script prepares the data batch-wise. One batch contains 10 scenes by default.
 ```
 
 
@@ -118,4 +124,4 @@ If you find T-FunS3D useful for your research and applications, please cite us u
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for full terms. Code from Third-party (e.g., [OpenMask3D](https://github.com/OpenMask3D/openmask3d), [SceneFun3D](https://scenefun3d.github.io/documentation/), [Fun3DU](https://github.com/tev-fbk/fun3du)) retains its original license.
 
 ## Acknowledgements
-We build on prior advances in open-vocabulary 3D segementation, foundation models, and vision-language models. Our codebase is implemented based on [OpenMask3D](https://github.com/OpenMask3D/openmask3d), [SceneFun3D](https://scenefun3d.github.io/documentation/), [Fun3DU](https://github.com/tev-fbk/fun3du), [FG-CLIP](https://huggingface.co/qihoo360/fg-clip-base), [QWen3](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507), and [Molmo](https://github.com/allenai/molmo). We sincerely appreciate the authors for their wonderful work and for releasing their code, models, and data processing scripts.
+We build on prior advances in open-vocabulary 3D segementation, foundation models, and vision-language models. Our codebase is implemented based on [OpenMask3D](https://github.com/OpenMask3D/openmask3d), [SceneFun3D](https://scenefun3d.github.io/documentation/), [Fun3DU](https://github.com/tev-fbk/fun3du), [FG-CLIP](https://huggingface.co/qihoo360/fg-clip-base), [QWen3](https://huggingface.co/Qwen/Qwen3-14B), and [Molmo](https://github.com/allenai/molmo). We sincerely appreciate the authors for their wonderful work and for releasing their code, models, and data processing scripts.

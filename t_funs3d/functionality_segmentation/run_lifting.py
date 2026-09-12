@@ -188,7 +188,7 @@ def save_record(path: str, n_points: int, data: dict):
         np.savez_compressed(path, acc_f=np.zeros(n_points), n_views=np.asarray([1]))
 
 
-@hydra.main(config_path="../configs", config_name="func_segm")
+@hydra.main(config_path="../config", config_name="functionality_segm")
 def run_lifting(args: DictConfig) -> dict:
     """
     Lifts the masks obtained in the previous step
@@ -254,7 +254,12 @@ def run_lifting(args: DictConfig) -> dict:
 
             # NB: predicted mask refer to CROPPED point cloud
             mask_data = get_prediction(
-                args.exp_name, parser, visit_id, args.frame_folder, desc_id, visit_data
+                os.path.join(args.exp_root, args.exp_name),
+                parser,
+                visit_id,
+                args.frame_folder,
+                desc_id,
+                visit_data,
             )
             if mask_data is not None:
                 pred_mask = post_process_pcd(parser, proc_pcd, mask_data)
