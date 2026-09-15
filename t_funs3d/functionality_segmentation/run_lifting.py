@@ -153,7 +153,9 @@ def get_prediction(
 
                 mask_f = (
                     torch.nn.functional.interpolate(
-                        mask_f, (orig_dim[0], orig_dim[1]), mode="nearest"
+                        mask_f,
+                        (int(orig_dim[0]), int(orig_dim[1])),
+                        mode="nearest",
                     )
                     .squeeze()
                     .to(torch.uint8)
