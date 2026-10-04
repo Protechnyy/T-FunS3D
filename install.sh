@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 ENV_NAME=${ENV_NAME:-T-FunS3D}
+VL_ENV_NAME=${VL_ENV_NAME:-${ENV_NAME}-vl}
 INSTALL_FLASH_ATTN=${INSTALL_FLASH_ATTN:-0}
 export MAX_JOBS=${MAX_JOBS:-2}
 
@@ -13,9 +14,9 @@ SOURCES="$ROOT/third-party"
 SEGMENTATOR="$SOURCES/segmentator"
 CURRENT_STAGE="startup"
 STAGE_NUMBER=0
-TOTAL_STAGES=10
+TOTAL_STAGES=11
 if [[ $INSTALL_FLASH_ATTN == 1 ]]; then
-    TOTAL_STAGES=11
+    TOTAL_STAGES=12
 fi
 
 usage() {
@@ -27,6 +28,7 @@ Run from any directory. All native source checkouts live under third-party/.
 
 Optional environment variables:
   ENV_NAME=name          Conda environment (default: T-FunS3D)
+  VL_ENV_NAME=name       Qwen3-VL environment for make_masks_index (default: ${ENV_NAME}-vl)
   MAX_JOBS=number        Parallel compiler jobs (default: 2)
   INSTALL_FLASH_ATTN=1   Also build and test FlashAttention 2 (default: 0)
 
@@ -220,6 +222,19 @@ validate_installation() {
     python "$ROOT/scripts/install_support.py" smoke
 }
 
+# make_masks_index 使用 Qwen3-VL，需要 transformers>=4.57（实际要求 torch>=2.3）；
+# Molmo 的 remote code 不兼容该版本 transformers，所以复制一个环境专门运行 make_masks_index
+install_vl_environment() {
+    conda deactivate
+    if ! conda run -n "$VL_ENV_NAME" python --version >/dev/null 2>&1; then
+        conda create -y --clone "$ENV_NAME" -n "$VL_ENV_NAME"
+    fi
+    conda activate "$VL_ENV_NAME"
+    python -m pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+    python -m pip install transformers==4.57.6
+    python -m pip check
+}
+
 run_stage 'Host prerequisites' check_host
 run_stage 'Conda environment' activate_environment
 run_stage 'CUDA toolkit and compilers' install_toolchain
@@ -233,5 +248,7 @@ if [[ $INSTALL_FLASH_ATTN == 1 ]]; then
     run_stage 'FlashAttention (optional)' install_flash_attention
 fi
 run_stage 'Installation checks' validate_installation
+run_stage 'Qwen3-VL environment' install_vl_environment
 printf '\nInstallation complete. Activate with: conda activate %s\n' "$ENV_NAME"
 printf 'Keep %s: segmentator links to its compiled library there.\n' "$SEGMENTATOR"
+printf 'make_masks_index (Qwen3-VL) runs in: conda activate %s\n' "$VL_ENV_NAME"

@@ -103,7 +103,9 @@ gpu.optimize_gpu_usage=${OPTIMIZE_GPU_USAGE}
 echo "[INFO] Feature computation done!"
 
 MASK_TYPE="standard"
-LLM_TYPE="Qwen3-14B"
+LLM_TYPE="qwen3_14b_remote"
+# make_masks_index 需要 transformers>=4.57 (Qwen3-VL)，在 install.sh 创建的 Qwen3-VL 环境中运行
+VL_ENV="${VL_ENV:-T-Search3D-vl}"
 
 
 # Stage II: Task-driven 3d functionality segmentation
@@ -117,7 +119,7 @@ echo "[INFO] Task description parsing and decomposition for ${START} - ${END} do
 # 4. Query open vocabulary scene graph for each scene and save the results
 echo "[INFO] Querying open vocabulary scene graph for candidate nodes..."
 
-python make_masks_index.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+conda run -n $VL_ENV --no-capture-output python make_masks_index.py dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Scene graph querying for ${START} - ${END} done!"
 
 

@@ -29,7 +29,7 @@ def get_molmo_prompt(visit_id: str, desc_id: str, llm_annot: dict, type: str) ->
     original = llm_annot["prompt"]
     func_object = None
     try:
-        func_object = llm_annot["acted_on_object"]
+        func_object = llm_annot["functional_component"]
 
         # check that this is not a list
         if isinstance(func_object, list):
@@ -52,7 +52,7 @@ def get_molmo_prompt(visit_id: str, desc_id: str, llm_annot: dict, type: str) ->
 
     ctx_object = None
     try:
-        ctx_object = llm_annot["acted_on_object_hierarchy"][0].lower()
+        ctx_object = llm_annot["target_object_hierarchy"][0].lower()
     except:
         print(f"No contextual object for {visit_id},{desc_id}.")
 
@@ -161,7 +161,7 @@ def molmo_pipeline(args: DictConfig):
     # init point cloud parser
     parser = DataParser(args.dataset.root, args.dataset.split)
     molmo_model, molmo_t = init_molmo()
-    sam_model, sam_t = init_sam_model("cuda")
+    sam_model, sam_t = init_sam_model("cuda", args.sam.model)
 
     if args.exp_root is None:
         args.exp_root = ""
