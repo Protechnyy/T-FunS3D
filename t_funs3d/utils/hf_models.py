@@ -206,10 +206,9 @@ def extract_points(molmo_output: str, size: Tuple[int, int]) -> np.array:
     return points
 
 
-def init_sam_model(device: str):
+def init_sam_model(device: str, ckpt: str = "facebook/sam-vit-huge"):
 
     device = torch.device(device)
-    ckpt = "facebook/sam-vit-huge" # "jadechoghari/robustsam-vit-huge" # "facebook/sam-vit-huge"
     model = SamModel.from_pretrained(ckpt).to(device)
     processor = SamProcessor.from_pretrained(ckpt)
 

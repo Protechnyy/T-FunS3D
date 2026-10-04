@@ -19,8 +19,8 @@ def get_prompt_data(visit_id: str, desc_id: str, llm_annot: dict) -> Tuple[str, 
 
     context_object, func_object = None, None  # these are top object and functional
     try:
-        context_object = llm_annot["acted_on_object_hierarchy"][0].lower()
-        func_object = llm_annot["acted_on_object"].lower()
+        context_object = llm_annot["target_object_hierarchy"][0].lower()
+        func_object = llm_annot["functional_component"].lower()
 
     except:
         print(f"No contextual or func object for {visit_id},{desc_id}.")

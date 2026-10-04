@@ -28,30 +28,18 @@ def main(args: DictConfig):
     time_s = time.time()
     count_query = 0
     for visit_id in tqdm(visits):
-        try:
-            descs = parser.get_descriptions_list(visit_id)
-            json_data = []
-    
-            for desc_id, query in descs.items():
-                count_query += 1
-    
-                response = llm.parse_query(query=query)
-                try:
-                    if '```' in response:
-                        json_dict = response.split('```')[1]
-                    else:
-                        json_dict = response
-                    json_data.append(json_dict)
-                except Exception as e:
-                    print(f"error {e}")
-                    json_data.append({})
-    
-            new_path = f"{args.dataset.root}/{args.dataset.split}/{visit_id}/{visit_id}_{args.llm_type}_cot.json"
-    
-            with open(new_path, "w") as out_f:
-                json.dump(json_data, out_f, indent=4)
-        except:
-            print(f"Visit {visit_id} does not exist")
+        descs = parser.get_descriptions_list(visit_id)
+        json_data = []
+
+        # 列表顺序与 descriptions.json 中的 desc_id 顺序一致，后续按 zip 对应
+        for desc_id, query in descs.items():
+            count_query += 1
+            json_data.append(llm.parse_query(query=query))
+
+        new_path = f"{args.dataset.root}/{args.dataset.split}/{visit_id}/{visit_id}_{args.llm_type}_cot.json"
+
+        with open(new_path, "w") as out_f:
+            json.dump(json_data, out_f, indent=4)
     time_e = time.time() - time_s
     print(f"Average inference time per query is {time_e / count_query}")
 

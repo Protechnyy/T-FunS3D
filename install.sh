@@ -136,3 +136,14 @@ cmake --install third-party/segmentator/csrc/build
 python -m pip install 'https://github.com/Dao-AILab/flash-attention/releases/download/v2.6.3/flash_attn-2.6.3+cu123torch2.1cxx11abiFALSE-cp310-cp310-linux_x86_64.whl' --no-deps
 python -m pip install ./third-party/GLIP --no-deps --no-build-isolation
 python -m pip check
+
+# make_masks_index 使用 Qwen3-VL，需要 transformers>=4.57（实际要求 torch>=2.3）；
+# Molmo 的 remote code 不兼容该版本 transformers，所以复制一个环境专门运行 make_masks_index
+conda deactivate
+if ! conda run -n T-Search3D-vl python --version >/dev/null 2>&1; then
+    conda create -y --clone T-Search3D -n T-Search3D-vl
+fi
+conda activate T-Search3D-vl
+python -m pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
+python -m pip install transformers==4.57.6
+python -m pip check

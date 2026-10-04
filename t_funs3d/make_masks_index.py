@@ -16,12 +16,46 @@ import torch
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
+from t_funs3d.frame_retrieval.qwen3vl_frame_selector import Qwen3VLFrameSelector
 from t_funs3d.utils import io
 from t_funs3d.utils.hf_models import init_detection, process_detection, init_clip_textual
 from t_funs3d.utils.misc import sort_alphanumeric
 from t_funs3d.utils.sun3d.data_parser import DataParser
 import torch
 import numpy as np
+
+
+def retrieve_remote_frames(
+    frame_selector: Qwen3VLFrameSelector,
+    parser: DataParser,
+    visit_id: str,
+    video_list: List[str],
+    desc: str,
+    cot: dict,
+):
+    """
+    Searches all videos of a visit for the functional component with Qwen3-VL.
+    Returns the candidate frames as video_id_frame_id and the retrieval record.
+    """
+    record = {
+        "prompt": desc,
+        "target_object": cot["target_object"],
+        "functional_component": cot["functional_component"],
+        "videos": dict(),
+    }
+    frames = list()
+    for video_id in video_list:
+        print(f" Searching video {video_id} for '{cot['functional_component']}'")
+        video_record = frame_selector.search_video(
+            desc,
+            cot["target_object"],
+            cot["functional_component"],
+            parser.get_rgb_frames(visit_id, video_id),
+        )
+        record["videos"][video_id] = video_record
+        frames += [f"{video_id}_{frame_id}" for frame_id in video_record["candidate_frame_ids"]]
+    return frames, record
+
 
 @hydra.main(config_path="config", config_name="functionality_segm")
 def make_mask_index(args: DictConfig):
@@ -45,8 +79,9 @@ def make_mask_index(args: DictConfig):
         f"Processing {end-start} visits (split {args.dataset.split}), from {visit_ids[0]} to {visit_ids[-1]}"
     )
 
-    clip_m, clip_t = init_clip_textual("qihoo360/fg-clip-large")
+    clip_m, clip_t = init_clip_textual(args.fgclip.model)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    frame_selector = Qwen3VLFrameSelector(args.remote_frame_search)
 
     if args.exp_root is None:
         args.exp_root = ""
@@ -57,6 +92,8 @@ def make_mask_index(args: DictConfig):
     os.makedirs(
         os.path.join(args.exp_root, args.exp_name, "association"), exist_ok=True
     )
+    remote_dir = os.path.join(args.exp_root, args.exp_name, args.remote_frame_search.output_folder)
+    os.makedirs(remote_dir, exist_ok=True)
 
     for visit_id in tqdm(visit_ids):
         video_list = io.get_visit_to_videos(root, split)[visit_id]
@@ -87,15 +124,28 @@ def make_mask_index(args: DictConfig):
         features = np.mean(features.squeeze(), axis=0)
         print(f"Features shape: {features.shape}")
     
+        assert len(desc_data) == len(llm_data), (visit_id, len(desc_data), len(llm_data))
+        remote_records = dict()
         for desc_dict, cot in zip(desc_data, llm_data):
             desc = desc_dict['description']
             desc_id = desc_dict['desc_id']
             print(desc)
-            # ref_object = cot['referent_object_hierarchy']
-            relations = [rel.replace("_", " ") for rel in cot['spatial_relation']]
+            relation_type = cot['component_target_relation']
+            print(f"component_target_relation: {relation_type}")
+
+            if relation_type == "remote":
+                visit_dict['desc_ids'][desc_id], remote_records[desc_id] = retrieve_remote_frames(
+                    frame_selector, parser, visit_id, video_list, desc, cot
+                )
+                print(f"Remote frames: {len(visit_dict['desc_ids'][desc_id])}")
+                print("-----")
+                continue
+
+            assert relation_type == "attached", relation_type
+            relations = [rel.replace("_", " ") for rel in cot['spatial_relations']]
             print(relations)
-            rel_object = cot['referent_object_hierarchy']
-            cxt_object = cot['acted_on_object_hierarchy'][0]
+            rel_object = cot['referent_objects']
+            cxt_object = cot['target_object_hierarchy'][0]
             print(cxt_object)
             # object_set = set(ref_object)
             # object_set.add(cxt_object)
@@ -154,6 +204,9 @@ def make_mask_index(args: DictConfig):
             "w",
         ) as f:
             json.dump(visit_dict, f)
+
+        with open(os.path.join(remote_dir, f"{visit_id}_remote_frames.json"), "w") as f:
+            json.dump(remote_records, f, indent=4)
 
 if __name__ == "__main__":
     make_mask_index()

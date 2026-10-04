@@ -20,6 +20,21 @@ frame_sampling:
 
 llm:
   model: "Qwen/Qwen3-14B" # HuggingFace model name used in the paper.
+
+fgclip:
+  model: "qihoo360/fg-clip-large" # FG-CLIP model used to query Mask3D mask features
+
+sam:
+  model: "facebook/sam-vit-huge"  # SAM model prompted with Molmo points
+
+remote_frame_search:            # Qwen3-VL frame retrieval for tasks with component_target_relation == remote
+  model: "Qwen/Qwen3-VL-8B-Instruct"
+  n_frames: 64                  # frames per round (N)
+  n_rounds: 4                   # uniform sampling rounds per video (K)
+  long_side: 512                # VLM image size 512x384, following the frame orientation (hires_wide frames are 1920x1440 or 1440x1920)
+  short_side: 384
+  max_new_tokens: 64
+  output_folder: remote_frame_search # folder inside the exp folder with the per-round retrieval records
   
 molmo_prompt: original # default, synonims. Only influences molmo
 threshold: 0.7         # used in evaluation 

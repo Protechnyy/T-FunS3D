@@ -1029,7 +1029,7 @@ class DataParser:
             desc_id = descs_annot["desc_id"]
             prompts = []
             try:
-                top = llm_annot["acted_on_object_hierarchy"][0]
+                top = llm_annot["target_object_hierarchy"][0]
                 if top not in prompts:
                     prompts.append(top)
             except:
@@ -1060,7 +1060,7 @@ class DataParser:
             desc_id = descs_annot["desc_id"]
             func_object = None
             try:
-                func_object = llm_annot["acted_on_object"]
+                func_object = llm_annot["functional_component"]
             except:
                 print(
                     f"Problem with annotation {desc_id} of visit {visit_id}, missing key."
@@ -1088,8 +1088,8 @@ class DataParser:
             desc_id = desc_annot["desc_id"]
             description = desc_annot["description"]
             try:
-                specific_object = llm_annot["acted_on_object"]
-                top_object = llm_annot["acted_on_object_hierarchy"][0]
+                specific_object = llm_annot["functional_component"]
+                top_object = llm_annot["target_object_hierarchy"][0]
                 if top_object in specific_object:
                     final = specific_object
                 else:

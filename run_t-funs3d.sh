@@ -102,8 +102,13 @@ echo "[INFO] Feature computation done!"
 
 
 MASK_TYPE="standard"
-LLM_TYPE="qwen3_14b"
+LLM_TYPE="qwen3_14b_remote"
 QWEN_MODEL_PATH="$(pwd)/models/Qwen3-14B"
+QWEN_VL_MODEL_PATH="$(pwd)/models/Qwen3-VL-8B-Instruct"
+FGCLIP_MODEL_PATH="$(pwd)/models/fg-clip-large"
+SAM_MODEL_PATH="$(pwd)/models/sam-vit-huge"
+# make_masks_index 需要 transformers>=4.57 (Qwen3-VL)，在 install.sh 创建的 T-Search3D-vl 环境中运行
+VL_ENV="T-Search3D-vl"
 
 
 # Stage II: Task-driven 3d functionality segmentation
@@ -117,14 +122,14 @@ echo "[INFO] Task description parsing and decomposition for ${START} - ${END} do
 # 4. Query open vocabulary scene graph for each scene and save the results
 echo "[INFO] Querying open vocabulary scene graph for candidate nodes..."
 
-python -m t_funs3d.make_masks_index dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+conda run -n $VL_ENV --no-capture-output python -m t_funs3d.make_masks_index dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE fgclip.model=$FGCLIP_MODEL_PATH remote_frame_search.model=$QWEN_VL_MODEL_PATH hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] Scene graph querying for ${START} - ${END} done!"
 
 
 # 5. Run MolMO to generate functionality masks for each task and save them
 echo "[INFO] Running MolMO to generate functionality masks for each task..."
 
-python -m t_funs3d.functionality_segmentation.run_molmo_sam dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
+python -m t_funs3d.functionality_segmentation.run_molmo_sam dataset.root=$ROOT dataset.split=$SPLIT mask_type=$MASK_TYPE llm_type=$LLM_TYPE sam.model=$SAM_MODEL_PATH hydra.run.dir=$OUTPUT_FOLDER_DIRECTORY dataset.start=$START dataset.end=$END exp_root=$OUTPUT_FOLDER_DIRECTORY
 echo "[INFO] MolMO for ${START} - ${END} done!"
 
 
