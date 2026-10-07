@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -16,12 +16,13 @@ You are given:
 3. the functional component that the robot must directly manipulate,
 4. a sequence of RGB frames.
 
-Select the single frame that most clearly shows the given functional component and provides enough visual context to determine that it is relevant to the task.
+Select the single frame that is most likely to contain the given functional component and provides the best visual evidence for locating it.
 
 Use the provided functional_component exactly.
-Only select a frame when the functional component is visually present.
 
-If none of the provided frames clearly shows the functional component, return found=false.
+You must select exactly one frame from the provided frames, even when the component is small, partially visible, occluded, or difficult to recognize.
+
+Prefer a frame where the functional component itself is visible. Do not select a frame only because it clearly shows the target object.
 
 Output valid JSON only."""
 
@@ -32,20 +33,14 @@ Functional component: {functional_component}
 
 The following RGB images are labeled frame_0, frame_1, ..., frame_{last_index}."""
 
-USER_PROMPT_QUERY = """Select the single frame that most clearly shows the functional component relevant to this task.
+USER_PROMPT_QUERY = """Select exactly one frame that is most likely to contain the functional component relevant to this task.
 
-Return:
+You must choose one of the provided frame labels.
+
+Return valid JSON only:
 
 {
-  "found": true,
   "frame": "frame_0"
-}
-
-If the functional component is not clearly visible in any frame, return:
-
-{
-  "found": false,
-  "frame": null
 }"""
 
 
@@ -84,9 +79,9 @@ class Qwen3VLFrameSelector:
         target_object: str,
         functional_component: str,
         rgb_paths: List[str],
-    ) -> Tuple[Optional[int], str]:
+    ) -> Tuple[int, str]:
         """
-        Returns the index (in rgb_paths) of the selected frame, or None if found=false, and the raw response.
+        Returns the index (in rgb_paths) of the selected frame and the raw response.
         """
         content = [
             {
@@ -133,14 +128,9 @@ class Qwen3VLFrameSelector:
         return self.parse_response(response, len(rgb_paths)), response
 
     @staticmethod
-    def parse_response(response: str, n_images: int) -> Optional[int]:
+    def parse_response(response: str, n_images: int) -> int:
         data = json.loads(response)
-        assert isinstance(data, dict) and set(data.keys()) == {"found", "frame"}, response
-        assert isinstance(data["found"], bool), response
-        if not data["found"]:
-            assert data["frame"] is None, response
-            return None
-
+        assert isinstance(data, dict) and set(data.keys()) == {"frame"}, response
         labels = {f"frame_{i}": i for i in range(n_images)}
         assert data["frame"] in labels, response
         return labels[data["frame"]]
@@ -193,21 +183,19 @@ class Qwen3VLFrameSelector:
                 [rgb_frames[frame_id] for frame_id in sampled_ids],
             )
 
+            center = int(idxs[selected])
+            neighborhood = range(
+                max(0, center - radius), min(n_video_frames - 1, center + radius) + 1
+            )
+            candidate_idxs.update(neighborhood)
             round_record = {
                 "round": r,
                 "sampled_frame_ids": sampled_ids,
                 "response": response,
-                "selected_frame_id": None,
-                "neighborhood_frame_ids": list(),
+                "selected_label": f"frame_{selected}",
+                "selected_frame_id": frame_ids[center],
+                "neighborhood_frame_ids": [frame_ids[i] for i in neighborhood],
             }
-            if selected is not None:
-                center = int(idxs[selected])
-                neighborhood = range(
-                    max(0, center - radius), min(n_video_frames - 1, center + radius) + 1
-                )
-                candidate_idxs.update(neighborhood)
-                round_record["selected_frame_id"] = frame_ids[center]
-                round_record["neighborhood_frame_ids"] = [frame_ids[i] for i in neighborhood]
             record["rounds"].append(round_record)
             print(f"  round {r}: {response.strip()} -> {round_record['selected_frame_id']}")
 
