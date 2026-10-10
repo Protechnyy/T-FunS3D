@@ -27,6 +27,9 @@ fgclip:
 sam:
   model: "facebook/sam-vit-huge"  # SAM model prompted with Molmo points
 
+molmo:
+  model: ${hydra:runtime.cwd}/models/Molmo-7B-D-0924
+
 remote_frame_search:            # Qwen3-VL frame retrieval for tasks with component_target_relation == remote
   model: "Qwen/Qwen3-VL-8B-Instruct"
   n_frames: 64                  # frames per round (N)

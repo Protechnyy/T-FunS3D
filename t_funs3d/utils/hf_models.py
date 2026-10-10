@@ -27,7 +27,7 @@ from t_funs3d.utils.io import pad_detection_predictions
 from t_funs3d.utils.misc import mask_to_box
 
 
-def init_molmo():
+def init_molmo(model_name: str):
     get_imports = dynamic_module_utils.get_imports
     with mock.patch.object(
         dynamic_module_utils,
@@ -35,18 +35,20 @@ def init_molmo():
         lambda path: [name for name in get_imports(path) if name != "tensorflow"],
     ):
         processor = AutoProcessor.from_pretrained(
-            "allenai/Molmo-7B-D-0924",
+            model_name,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             device_map="auto",
+            local_files_only=True,
         )
 
     # load the model
     model = AutoModelForCausalLM.from_pretrained(
-        "allenai/Molmo-7B-D-0924",
+        model_name,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         device_map="auto",
+        local_files_only=True,
     )
     return model, processor
 
