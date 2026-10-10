@@ -160,7 +160,7 @@ def molmo_pipeline(args: DictConfig):
 
     # init point cloud parser
     parser = DataParser(args.dataset.root, args.dataset.split)
-    molmo_model, molmo_t = init_molmo()
+    molmo_model, molmo_t = init_molmo(args.molmo.model)
     sam_model, sam_t = init_sam_model("cuda", args.sam.model)
 
     if args.exp_root is None:

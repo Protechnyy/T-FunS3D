@@ -4,7 +4,7 @@
 
 - 禁止联网请求huggingface、modelscope下载模型到本地缓存文件夹或检查模型是否为最新版本，本项目用到的模型都已经下载到了本地。
 
-- 当前用到的molmo模型本地目录为：/home/yy/.cache/huggingface/hub/models--allenai--Molmo-7B-D-0924/
+- 当前用到的molmo模型本地目录为：/home/yy/data/code/T-FunS3D/models/Molmo-7B-D-0924
 
 - 当前用到的Qwen3-14B模型本地目录为：/home/yy/data/code/T-FunS3D/models/Qwen3-14B
 
