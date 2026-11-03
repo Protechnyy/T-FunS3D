@@ -5,18 +5,21 @@ from transformers import GenerationConfig
 import json
 import time
 
+from t_funs3d.utils.model_paths import LLM_MODEL, resolve_model_path
+
 class LLMParser:
     def __init__(self, 
-                 model_name: str = "Qwen/Qwen3-4B",
+                 model_name: str = LLM_MODEL,
                  torch_dtype: str = "auto",
                  device_map: str = "auto",
                  ):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model_path = resolve_model_path(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
+            model_path,
             torch_dtype=torch_dtype,
             device_map=device_map,
-            local_files_only = False,
+            local_files_only=True,
         )
         
 

@@ -1,5 +1,6 @@
 import math
 import re
+from unittest import mock
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -20,27 +21,45 @@ from transformers import (
     SamProcessor,
     BitsAndBytesConfig,
 )
+from transformers import dynamic_module_utils
 
 from t_funs3d.utils.io import pad_detection_predictions
 from t_funs3d.utils.misc import mask_to_box
 from t_funs3d.utils.molmo_compat import apply_molmo_torch_compat
+from t_funs3d.utils.model_paths import (
+    FGCLIP_MODEL,
+    MOLMO_MODEL,
+    SAM_MODEL,
+    resolve_model_path,
+)
 
 
-def init_molmo():
+def init_molmo(model_name: str = MOLMO_MODEL):
+    model_path = resolve_model_path(model_name)
 
-    processor = AutoProcessor.from_pretrained(
-        "allenai/Molmo-7B-D-0924",
-        trust_remote_code=True,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
+    # Molmo's preprocessing file lists tensorflow as an (unused) import; skip it
+    # in transformers' import check so tensorflow need not be installed.
+    get_imports = dynamic_module_utils.get_imports
+    with mock.patch.object(
+        dynamic_module_utils,
+        "get_imports",
+        lambda path: [name for name in get_imports(path) if name != "tensorflow"],
+    ):
+        processor = AutoProcessor.from_pretrained(
+            model_path,
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            local_files_only=True,
+        )
 
     # load the model
     model = AutoModelForCausalLM.from_pretrained(
-        "allenai/Molmo-7B-D-0924",
+        model_path,
         trust_remote_code=True,
         torch_dtype=torch.bfloat16,
         device_map="auto",
+        local_files_only=True,
     )
     apply_molmo_torch_compat(model)
     return model, processor
@@ -178,12 +197,12 @@ def extract_points(molmo_output: str, size: Tuple[int, int]) -> np.array:
     return points
 
 
-def init_sam_model(device: str):
+def init_sam_model(device: str, model_name: str = SAM_MODEL):
 
     device = torch.device(device)
-    ckpt = "facebook/sam-vit-huge" # "jadechoghari/robustsam-vit-huge" # "facebook/sam-vit-huge"
-    model = SamModel.from_pretrained(ckpt).to(device)
-    processor = SamProcessor.from_pretrained(ckpt)
+    ckpt = resolve_model_path(model_name)
+    model = SamModel.from_pretrained(ckpt, local_files_only=True).to(device)
+    processor = SamProcessor.from_pretrained(ckpt, local_files_only=True)
 
     return model, processor
 
@@ -589,8 +608,10 @@ def init_clip_visual(clip_model=None, download_root=None):
     if clip_model is None:
         model, processor = clip.load('ViT-L/14@336px', download_root=download_root) #TODO down models into /tmp/jfeng/cache/clip
     elif "fg-clip" in clip_model:
+        clip_model = resolve_model_path(clip_model)
         processor = AutoImageProcessor.from_pretrained(
             clip_model,
+            local_files_only=True,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             device_map="auto",
@@ -600,6 +621,7 @@ def init_clip_visual(clip_model=None, download_root=None):
         # load the model
         model = AutoModelForCausalLM.from_pretrained(
             clip_model,
+            local_files_only=True,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             device_map="auto",
@@ -608,9 +630,11 @@ def init_clip_visual(clip_model=None, download_root=None):
         output_dim = model.config.text_config.hidden_size
         print(f"CLIP model output dimension: {output_dim}")
     elif "siglip" in clip_model:
+        clip_model = resolve_model_path(clip_model)
         # bnb_config = BitsAndBytesConfig(load_in_4bit=True)
         processor = AutoImageProcessor.from_pretrained(
             clip_model,
+            local_files_only=True,
             device_map="auto",
             # use_fast=True,
         ).preprocess
@@ -618,6 +642,7 @@ def init_clip_visual(clip_model=None, download_root=None):
         # load the model
         model = AutoModel.from_pretrained(
             clip_model,
+            local_files_only=True,
             # quantization_config=bnb_config,
             attn_implementation="sdpa",
             device_map="auto",
@@ -635,8 +660,10 @@ def init_clip_textual(clip_model=None):
         model, _ = clip.load('ViT-L/14@336px')
         tokenizer = clip.tokenize
     elif "fg-clip" in clip_model:
+        clip_model = resolve_model_path(clip_model)
         tokenizer = AutoTokenizer.from_pretrained(
             clip_model, 
+            local_files_only=True,
             trust_remote_code=True, 
             max_length=77, 
             padding="max_length",
@@ -646,6 +673,7 @@ def init_clip_textual(clip_model=None):
         )
         model = AutoModelForCausalLM.from_pretrained(
             clip_model,
+            local_files_only=True,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
             device_map="auto"
@@ -654,8 +682,10 @@ def init_clip_textual(clip_model=None):
         output_dim = model.config.text_config.hidden_size
         print(f"CLIP model output dimension: {output_dim}")
     elif "siglip" in clip_model:
+        clip_model = resolve_model_path(clip_model)
         tokenizer = AutoTokenizer.from_pretrained(
             clip_model,
+            local_files_only=True,
             trust_remote_code=True,
             padding="max_length",
             max_length=64,
@@ -666,6 +696,7 @@ def init_clip_textual(clip_model=None):
         # load the model
         model = AutoModel.from_pretrained(
             clip_model,
+            local_files_only=True,
             trust_remote_code=True,
             attn_implementation="sdpa",
             device_map="auto",

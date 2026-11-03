@@ -1,6 +1,7 @@
 #!/bin/bash
 export OMP_NUM_THREADS=3  # speeds up MinkowskiEngine
 export HF_HOME="$(pwd)/cache/" # Specify cache dir for daic compute nodes
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1  # weights are loaded from ./models, never downloaded
 set -e
 
 # RUN OPENMASK3D FOR A BATCH OF SCENES of the SceneFun3D dataset
@@ -102,7 +103,7 @@ gpu.optimize_gpu_usage=${OPTIMIZE_GPU_USAGE}
 echo "[INFO] Feature computation done!"
 
 MASK_TYPE="standard"
-LLM_TYPE="Qwen3-8B"
+LLM_TYPE="Qwen3-14B"
 
 
 # Stage II: Task-driven 3d functionality segmentation

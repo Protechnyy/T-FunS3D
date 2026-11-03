@@ -180,3 +180,25 @@ cache/
 
 # Except for the dataset config files
 !t_funs3d/config/class_agnostic_masks/data/datasets
+
+# Local model weights (HF-format dirs under models/, see t_funs3d/utils/model_paths.py)
+/models/
+*.safetensors
+*.ckpt
+*.pth
+.hfd/
+
+# Experiment results, visualizations and local data
+/saved/
+/exps/
+/data/
+multirun/
+*.ply
+*.npz
+*.pkl
+
+# Local assistant / editor files
+/.claude/
+/CLAUDE.md
+/AGENTS.md
+arXiv-*/
