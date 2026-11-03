@@ -293,7 +293,7 @@ class FeaturesExtractor:
 
         print("[INFO] Loading clip model")
         self.clip_type = "FG_CLIP"
-        self.clip_model, self.clip_preprocess = init_clip_visual(FGCLIP_MODEL) #clip_model="google/siglip2-large-patch16-512")#"qihoo360/fg-clip-large")
+        self.clip_model, self.clip_preprocess = init_clip_visual(FGCLIP_MODEL, device=device) #clip_model="google/siglip2-large-patch16-512")#"qihoo360/fg-clip-large")
 
         # if "fg-clip" in clip_model:
         #     self.clip_model = AutoModelForCausalLM.from_pretrained(clip_model, trust_remote_code=True).to(device)

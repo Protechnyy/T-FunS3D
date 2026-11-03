@@ -603,7 +603,7 @@ def process_detection(owl_m, owl_p, sam_m, sam_p, images, prompts) -> dict:
 
     return mask_data
 
-def init_clip_visual(clip_model=None, download_root=None):
+def init_clip_visual(clip_model=None, download_root=None, device=None):
     '''Initialize CLIP models'''
     if clip_model is None:
         model, processor = clip.load('ViT-L/14@336px', download_root=download_root) #TODO down models into /tmp/jfeng/cache/clip
@@ -624,7 +624,7 @@ def init_clip_visual(clip_model=None, download_root=None):
             local_files_only=True,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
-            device_map="auto",
+            device_map={"": device} if device is not None else "auto",
         )
         # Get the output dimension of the model
         output_dim = model.config.text_config.hidden_size
@@ -654,7 +654,7 @@ def init_clip_visual(clip_model=None, download_root=None):
         raise NotImplementedError
     return model, processor
 
-def init_clip_textual(clip_model=None):
+def init_clip_textual(clip_model=None, device=None):
     '''Initialize CLIP models'''
     if clip_model is None:
         model, _ = clip.load('ViT-L/14@336px')
@@ -676,7 +676,7 @@ def init_clip_textual(clip_model=None):
             local_files_only=True,
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
-            device_map="auto"
+            device_map={"": device} if device is not None else "auto"
         )
         # Get the output dimension of the model
         output_dim = model.config.text_config.hidden_size

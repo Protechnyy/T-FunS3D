@@ -46,8 +46,8 @@ def make_mask_index(args: DictConfig):
         f"Processing {end-start} visits (split {args.dataset.split}), from {visit_ids[0]} to {visit_ids[-1]}"
     )
 
-    clip_m, clip_t = init_clip_textual(FGCLIP_MODEL)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    clip_m, clip_t = init_clip_textual(FGCLIP_MODEL, device=device)
 
     if args.exp_root is None:
         args.exp_root = ""
